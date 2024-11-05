@@ -1,8 +1,7 @@
 services:
   postgres:
     image: postgres:13
-    env_file:
-      - .env
+    container_name: postgres_db
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
@@ -38,8 +37,8 @@ services:
       - app-network
     depends_on:
       - postgres
-    # command: python bot.py
-    # restart: always
+    command: python main.py
+    restart: always
 
 networks:
   app-network:
