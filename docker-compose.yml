@@ -1,8 +1,8 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:13
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
@@ -11,24 +11,35 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
+    ports:
+      - "5432:5432"
 
   django:
     build: ./django_admin
+    env_file:
+      - .env
     volumes:
       - ./django_admin:/code
     networks:
       - app-network
     depends_on:
       - postgres
+    ports:
+      - "8000:8000"
+    command: python manage.py runserver 0.0.0.0:8000
 
   telegram_bot:
     build: ./telegram_bot
+    env_file:
+      - .env
     volumes:
       - ./telegram_bot:/code
     networks:
       - app-network
     depends_on:
       - postgres
+    # command: python bot.py
+    # restart: always
 
 networks:
   app-network:
