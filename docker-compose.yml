@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  django:
+    build: ./django_admin
+    volumes:
+      - ./django_admin:/code
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+
+  telegram_bot:
+    build: ./telegram_bot
+    volumes:
+      - ./telegram_bot:/code
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+
+networks:
+  app-network:
+
+volumes:
+  postgres_data:
