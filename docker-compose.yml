@@ -33,6 +33,7 @@ services:
       - .env
     volumes:
       - ./telegram_bot:/code
+      - ./django_admin/media:/code/media  # хитрости
     networks:
       - app-network
     depends_on:

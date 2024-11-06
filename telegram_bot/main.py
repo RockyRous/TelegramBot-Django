@@ -1,12 +1,11 @@
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from asyncpg import connect
 import asyncio
 
 from config import API_TOKEN, LOGGING_LEVEL, DB_URL
-from inline_buttons import get_main_menu
-from catalog import get_categories
+from inline_buttons import get_menu_buttons
+from catalog import get_categories, get_categories_or_products, get_product
 from cart import add_to_cart, view_cart, remove_from_cart
 
 # Настройка логирования
@@ -17,8 +16,6 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# async def init_db():
-#     return await connect(DB_URL)
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -26,12 +23,22 @@ async def cmd_start(message: types.Message):
 
 @dp.message(Command("menu"))
 async def cmd_menu(message: types.Message):
-    await message.answer("Выберите действие:", reply_markup=get_main_menu())
+    await message.answer("Выберите действие:", reply_markup=get_menu_buttons())
 
 
 @dp.callback_query(lambda c: c.data == "catalog")
 async def catalog_handler(callback_query: types.CallbackQuery):
     return await get_categories(callback_query)
+
+
+@dp.callback_query(lambda c: c.data.startswith("category_"))
+async def catalog_handler(callback_query: types.CallbackQuery):
+    return await get_categories_or_products(callback_query)
+
+
+@dp.callback_query(lambda c: c.data.startswith("product_"))
+async def catalog_handler(callback_query: types.CallbackQuery):
+    return await get_product(callback_query)
 
 
 @dp.callback_query(lambda c: c.data == "cart")

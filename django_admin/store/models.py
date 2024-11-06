@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -20,13 +21,19 @@ class Category(models.Model):
         return self.name
 
 
+def validate_image_size(image):
+    MAX_SIZE = 5 * 1024 * 1024  # 5 МБ
+    if image.size > MAX_SIZE:
+        raise ValidationError(f"Размер изображения не должен превышать {MAX_SIZE / (1024 * 1024)} MB")
+
+
 class Product(models.Model):
     """ Продукт """
     name = models.CharField(max_length=200)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    image = models.ImageField(upload_to='products/', null=True, blank=True)
+    image = models.ImageField(upload_to='products/', null=True, blank=True, validators=[validate_image_size])
 
     def __str__(self):
         return self.name
