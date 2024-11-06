@@ -4,7 +4,7 @@ import asyncpg
 from aiogram.types import FSInputFile, BufferedInputFile, URLInputFile
 
 from config import DB_URL
-from inline_buttons import get_categories_buttons, get_products_buttons, get_product_buttons
+from buttons import get_categories_buttons, get_products_buttons, get_product_buttons
 
 
 async def get_categories(callback_query):

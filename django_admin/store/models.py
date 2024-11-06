@@ -1,13 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.contrib.auth.models import User
 
-""" 
-    User
-Управление учетными записями пользователей.
-Аутентификация и авторизация пользователей.
-Хранение основной информации, такой как имя пользователя, пароль и email.
-"""
 
 class Category(models.Model):
     """ Категории
@@ -34,6 +27,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     image = models.ImageField(upload_to='products/', null=True, blank=True, validators=[validate_image_size])
+    # todo будем загружать юрл на картинку и хранить строку
 
     def __str__(self):
         return self.name
@@ -44,7 +38,7 @@ class CartItem(models.Model):
     Модель CartItem используется для хранения информации о товарах,
     добавленных пользователями в их корзину.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cart_items')
+    user_id = models.IntegerField()
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
 
@@ -54,13 +48,13 @@ class CartItem(models.Model):
 
 class Order(models.Model):
     """ Заказ """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
+    user_id = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('completed', 'Completed'), ('cancelled', 'Cancelled')])
 
     def __str__(self):
-        return f"Order {self.id} by {self.user.username}"
+        return f"Order {self.id} by {self.user}"
 
 
 class Log(models.Model):
@@ -72,9 +66,9 @@ class Log(models.Model):
     """
     action = models.CharField(max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    user_id = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.timestamp} - {self.action}"
+        return f"{self.timestamp} - {self.action} | {self.user}"
 
 
