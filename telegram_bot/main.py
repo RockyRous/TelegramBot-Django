@@ -17,6 +17,8 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 dp.include_router(router)
 
+# TODO: Хорошо бы сделать удаление старых сообщений
+
 
 async def check_subscription(user_id: int):
     """ Функция для проверки подписки пользователя на канал """
@@ -31,6 +33,7 @@ async def check_subscription(user_id: int):
     except Exception as e:
         print(f"Error while checking subscription: {e}")
         return False
+
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):

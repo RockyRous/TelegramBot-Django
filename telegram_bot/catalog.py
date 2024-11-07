@@ -1,56 +1,104 @@
 import asyncpg
 from aiogram import types
-from aiogram.types import URLInputFile
+from aiogram.types import URLInputFile, InputMediaPhoto
 
-from config import DB_URL, default_img_url
-from buttons import get_categories_buttons, get_products_buttons, get_product_buttons
+from config import DB_URL, default_img_url, default_img
+from buttons import get_categories_buttons, get_products_buttons, get_product_buttons, get_menu_buttons
+
+CATEGORIES_PER_PAGE, ITEMS_PER_PAGE = 5, 5  # Количество категорий и товаров на одной странице
 
 
 async def get_categories(callback_query: types.CallbackQuery):
-    # todo: надо сделать пагинацию
     conn = await asyncpg.connect(DB_URL)
     try:
-        categories = await conn.fetch("SELECT id, name FROM store_category where parent_category_id is null")
+        # Получаем номер страницы из callback_data
+        page = 1  # По умолчанию первая страница
+        if callback_query.data.startswith('next_'):
+            page = int(callback_query.data.split('_')[1]) + 1
+        elif callback_query.data.startswith('prev_'):
+            page = int(callback_query.data.split('_')[1]) - 1
+
+        # Рассчитываем смещение для SQL-запроса
+        offset = (page - 1) * CATEGORIES_PER_PAGE
+
+        # Запрос на получение категории для текущей страницы
+        categories = await conn.fetch("""
+                    SELECT id, name FROM store_category
+                    WHERE parent_category_id IS NULL
+                    LIMIT $1 OFFSET $2
+                """, CATEGORIES_PER_PAGE, offset)
     finally:
         await conn.close()
 
     if categories:
-        category_buttons = get_categories_buttons(categories)
-        await callback_query.message.answer(f"Доступные категории:", reply_markup=category_buttons)
+        buttons = get_categories_buttons(categories, page)
+        text = f"Доступные категории (страница {page}):"
     else:
-        await callback_query.message.answer(f"Нет категорий")
+        buttons = get_menu_buttons()
+        text = f"Нет доступных категорий"
+
+    await callback_query.message.edit_media(
+        media=InputMediaPhoto(
+            media=default_img,
+            caption=text,
+        ),
+        reply_markup=buttons
+    )
 
 
 async def get_categories_or_products(callback_query: types.CallbackQuery):
-    # todo: надо сделать пагинацию
     conn = await asyncpg.connect(DB_URL)
     categories = None
     products = None
     try:
-        # Получаем подкатегории
+        # Получаем ID категории из callback_data
         category_id = int(callback_query.data.split('_')[1])  # category_{id}
-        query = f"SELECT id, name FROM store_category where parent_category_id = $1"
-        categories = await conn.fetch(query, category_id)
+
+        # Пагинация для подкатегорий и товаров
+        page = 1  # По умолчанию первая страница
+        if callback_query.data.startswith('next_categories_'):
+            page = int(callback_query.data.split('_')[2]) + 1
+        elif callback_query.data.startswith('prev_categories_'):
+            page = int(callback_query.data.split('_')[2]) - 1
+        elif callback_query.data.startswith('next_products_'):
+            page = int(callback_query.data.split('_')[2]) + 1
+        elif callback_query.data.startswith('prev_products_'):
+            page = int(callback_query.data.split('_')[2]) - 1
+
+        # Рассчитываем смещение для SQL-запроса
+        offset = (page - 1) * ITEMS_PER_PAGE
+
+        # Получаем подкатегории для данной категории с пагинацией
+        query = f"SELECT id, name FROM store_category WHERE parent_category_id = $1 LIMIT $2 OFFSET $3"
+        categories = await conn.fetch(query, category_id, ITEMS_PER_PAGE, offset)
 
         if not categories:
-            # Получаем продукты
-            query = "SELECT * FROM store_product where category_id = $1"
-            products = await conn.fetch(query, category_id)
-            print(products)
+            # Если нет подкатегорий, получаем товары для данной категории с пагинацией
+            query = f"SELECT id, name FROM store_product WHERE category_id = $1 LIMIT $2 OFFSET $3"
+            products = await conn.fetch(query, category_id, ITEMS_PER_PAGE, offset)
     finally:
         await conn.close()
 
     if categories:
-        category_buttons = get_categories_buttons(categories)
-        await callback_query.message.answer(f"Доступные подкатегории:", reply_markup=category_buttons)
+        buttons = get_categories_buttons(categories, page)
+        text = f"Доступные подкатегории (страница {page}):"
     elif products:
-        products_buttons = get_products_buttons(products)
-        await callback_query.message.answer(f"Доступные товары:", reply_markup=products_buttons)
+        buttons = get_products_buttons(products, page)
+        text = f"Доступные товары (страница {page}):"
     else:
-        await callback_query.message.answer(f"Ничего не найдено :С")
+        buttons = get_menu_buttons()
+        text = f"Ничего не найдено :С"
+
+    await callback_query.message.edit_media(
+        media=InputMediaPhoto(
+            media=default_img,
+            caption=text,
+        ),
+        reply_markup=buttons
+    )
 
 
-async def get_product(callback_query):
+async def get_product(callback_query: types.CallbackQuery):
     conn = await asyncpg.connect(DB_URL)
     try:
         query = "SELECT * FROM store_product where id = $1"
@@ -59,10 +107,9 @@ async def get_product(callback_query):
     finally:
         await conn.close()
 
-    # TODO: Обернуть в трай - юрл может быть не действительным из бд - ставить заглушку
     if product:
         product = product[0]
-        product_buttons = get_product_buttons(product)
+        buttons = get_product_buttons(product)
         if product['image_url']:
             try:
                 photo = URLInputFile(product['image_url'])
@@ -70,13 +117,20 @@ async def get_product(callback_query):
                 photo = URLInputFile(default_img_url)
         else:
             photo = URLInputFile(default_img_url)
-        await callback_query.message.answer_photo(
-            photo=photo,
-            caption=f"{product['name']}\n{product['description']}\n{product['price']}",
-            reply_markup=product_buttons
-        )
+
+        text = f"{product['name']}\n{product['description']}\n{product['price']}"
     else:
-        await callback_query.message.answer(f"Случилась ошибка")
+        buttons = get_menu_buttons()
+        photo = default_img
+        text = f"Случилась ошибка"
+
+    await callback_query.message.edit_media(
+        media=InputMediaPhoto(
+            media=photo,
+            caption=text,
+        ),
+        reply_markup=buttons
+    )
 
 
 
