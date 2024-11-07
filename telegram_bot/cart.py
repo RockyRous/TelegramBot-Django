@@ -11,20 +11,46 @@ from payments import YookassaGateway
 # todo позаворачивать всё в трай
 
 async def get_cart(user_id) -> dict:
+    """ Получаем все товары в корзине пользователя, включая информацию о продукте """
     conn = await asyncpg.connect(DB_URL)
-    # Получаем все товары в корзине пользователя, включая информацию о продукте
-    cart_items = await conn.fetch("""
-            SELECT ci.product_id, ci.quantity, p.name, p.description, p.price
-            FROM store_cartitem ci
-            JOIN store_product p ON ci.product_id = p.id
-            WHERE ci.user_id = $1
-        """, user_id)
-    await conn.close()
+    try:
+        cart_items = await conn.fetch("""
+                SELECT ci.product_id, ci.quantity, p.name, p.description, p.price
+                FROM store_cartitem ci
+                JOIN store_product p ON ci.product_id = p.id
+                WHERE ci.user_id = $1
+            """, user_id)
+    finally:
+        await conn.close()
     return cart_items
+
+
+async def add_telegram_user(user_id: int) -> None:
+    query_check_user = """
+    SELECT user_id FROM telegram_users WHERE user_id = $1;
+    """
+    query_insert_user = """
+    INSERT INTO telegramuser (user_id) 
+    VALUES $1;
+    """
+
+    conn = await asyncpg.connect(DB_URL)
+    try:
+        # Проверяем, существует ли уже пользователь в базе данных
+        result = await conn.fetch(query_check_user, user_id)
+
+        if not result:  # Если пользователя нет в базе
+            await conn.execute(query_insert_user, user_id)
+            print(f"User {user_id} added to the database.")
+        else:
+            print(f"User {user_id} already exists in the database.")
+    finally:
+        await conn.close()
 
 
 async def view_cart(callback_query):
     user_id = callback_query.from_user.id
+    await add_telegram_user(user_id)
     cart_items = await get_cart(user_id)
 
     if cart_items:
@@ -65,11 +91,13 @@ async def add_to_cart(callback_query):
     user_id = callback_query.from_user.id
 
     conn = await asyncpg.connect(DB_URL)
-    await conn.execute("""
-        INSERT INTO store_cartitem (user_id, product_id, quantity)
-        VALUES ($1, $2, $3)
-    """, user_id, product_id, quantity)
-    await conn.close()
+    try:
+        await conn.execute("""
+            INSERT INTO store_cartitem (user_id, product_id, quantity)
+            VALUES ($1, $2, $3)
+        """, user_id, product_id, quantity)
+    finally:
+        await conn.close()
 
     await callback_query.message.answer(f"Вы добавили {quantity} товаров {product_id} в корзину. Вы {user_id}")
     # await callback_query.answer()  # Закрываем уведомление, чтобы кнопка не зависала
@@ -78,22 +106,26 @@ async def add_to_cart(callback_query):
 async def remove_from_cart(user_id: int, product_id: int) -> None:
     """ Удаляем указанный товар из корзины пользователя """
     conn = await asyncpg.connect(DB_URL)
-    await conn.execute("""
-        DELETE FROM store_cartitem
-        WHERE user_id = $1 AND product_id = $2
-    """, user_id, product_id)
-    await conn.close()
+    try:
+        await conn.execute("""
+            DELETE FROM store_cartitem
+            WHERE user_id = $1 AND product_id = $2
+        """, user_id, product_id)
+    finally:
+        await conn.close()
 
 
 async def update_cart_item_quantity(user_id: int, product_id: int, quantity: int) -> None:
     """ Обновляем количество для указанного товара в корзине пользователя """
     conn = await asyncpg.connect(DB_URL)
-    await conn.execute("""
-        UPDATE store_cartitem
-        SET quantity = $1
-        WHERE user_id = $2 AND product_id = $3
-    """, quantity, user_id, product_id)
-    await conn.close()
+    try:
+        await conn.execute("""
+            UPDATE store_cartitem
+            SET quantity = $1
+            WHERE user_id = $2 AND product_id = $3
+        """, quantity, user_id, product_id)
+    finally:
+        await conn.close()
 
 
 async def create_payment(callback_query) -> tuple:
@@ -121,15 +153,16 @@ async def create_payment(callback_query) -> tuple:
 
 
 async def clear_cart(user_id: int) -> None:
+    """ Удаляем все товары из корзины пользователя """
     conn = await asyncpg.connect(DB_URL)
 
-    # Удаляем все товары из корзины пользователя
-    await conn.execute("""
-        DELETE FROM store_cartitem
-        WHERE user_id = $1
-    """, user_id)
-
-    await conn.close()
+    try:
+        await conn.execute("""
+            DELETE FROM store_cartitem
+            WHERE user_id = $1
+        """, user_id)
+    finally:
+        await conn.close()
 
 
 async def create_order(callback_query, data):
@@ -147,11 +180,13 @@ async def create_order(callback_query, data):
 
     # Записываем данные заказа в базу
     conn = await asyncpg.connect(DB_URL)
-    await conn.execute("""
-        INSERT INTO store_order (user_id, user_data, created_at, total_price, status)
-        VALUES ($1, $2, $3, $4, $5)
-    """, user_id, user_data, created_at, total_price, status)
-    await conn.close()
+    try:
+        await conn.execute("""
+            INSERT INTO store_order (user_id, user_data, created_at, total_price, status)
+            VALUES ($1, $2, $3, $4, $5)
+        """, user_id, user_data, created_at, total_price, status)
+    finally:
+        await conn.close()
 
     await clear_cart(user_id)
 

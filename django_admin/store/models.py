@@ -1,6 +1,11 @@
 from django.db import models
 
 
+class TelegramUser(models.Model):
+    """ Модель хранения базы пользователей """
+    user_id = models.IntegerField()
+
+
 class Category(models.Model):
     """ Категории
     Модель Category используется для создания иерархии категорий товаров.
@@ -19,7 +24,7 @@ class Product(models.Model):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    image_url = models.CharField(max_length=255, null=True, blank=True)
+    image_url = models.CharField(max_length=255, null=True, blank=True)  # Тут хорошо бы сделать валидацию
 
     def __str__(self):
         return self.name

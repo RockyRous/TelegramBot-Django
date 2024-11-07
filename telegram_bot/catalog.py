@@ -1,13 +1,12 @@
-import os
-
 import asyncpg
-from aiogram.types import FSInputFile, BufferedInputFile, URLInputFile
+from aiogram import types
+from aiogram.types import URLInputFile
 
-from config import DB_URL
+from config import DB_URL, default_img_url
 from buttons import get_categories_buttons, get_products_buttons, get_product_buttons
 
 
-async def get_categories(callback_query):
+async def get_categories(callback_query: types.CallbackQuery):
     # todo: надо сделать пагинацию
     conn = await asyncpg.connect(DB_URL)
     try:
@@ -22,7 +21,7 @@ async def get_categories(callback_query):
         await callback_query.message.answer(f"Нет категорий")
 
 
-async def get_categories_or_products(callback_query):
+async def get_categories_or_products(callback_query: types.CallbackQuery):
     # todo: надо сделать пагинацию
     conn = await asyncpg.connect(DB_URL)
     categories = None
@@ -65,9 +64,12 @@ async def get_product(callback_query):
         product = product[0]
         product_buttons = get_product_buttons(product)
         if product['image_url']:
-            photo = URLInputFile(product['image_url'])
+            try:
+                photo = URLInputFile(product['image_url'])
+            except:
+                photo = URLInputFile(default_img_url)
         else:
-            photo = URLInputFile('https://серебро.рф/img/placeholder.png')
+            photo = URLInputFile(default_img_url)
         await callback_query.message.answer_photo(
             photo=photo,
             caption=f"{product['name']}\n{product['description']}\n{product['price']}",

@@ -2,14 +2,64 @@ from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+
 import re
 
 from buttons import get_menu_buttons, confirm_order_buttons
-from cart import create_payment, create_order
+from catalog import get_categories, get_categories_or_products, get_product
+from cart import create_payment, create_order, view_cart, add_to_cart, set_count
 from payments import YookassaGateway
 
 router = Router()
 
+
+########################################################################################################################
+### CATALOG
+@router.callback_query(F.data == "catalog")
+async def catalog_handler(callback_query: types.CallbackQuery):
+    return await get_categories(callback_query)
+
+
+@router.callback_query(F.data.startswith("category_"))
+async def category_handler(callback_query: types.CallbackQuery):
+    return await get_categories_or_products(callback_query)
+
+
+########################################################################################################################
+### PRODUCT
+@router.callback_query(F.data.startswith("product_"))
+async def product_handler(callback_query: types.CallbackQuery):
+    return await get_product(callback_query)
+
+
+@router.callback_query(F.data.startswith("quantity:"))
+async def quantity_handler(callback_query: types.CallbackQuery):
+    """ Обработчик колбэков для кнопок изменения количества """
+    await set_count(callback_query)
+
+
+########################################################################################################################
+### CART
+@router.callback_query(F.data == "cart")
+async def cart_handler(callback_query: types.CallbackQuery):
+    await view_cart(callback_query)
+
+
+@router.callback_query(F.data.startswith("add_to_cart:"))
+async def cart_handler(callback_query: types.CallbackQuery):
+    """ Обработчик колбэка для добавления в корзину """
+    await add_to_cart(callback_query)
+
+
+########################################################################################################################
+### FAQ
+@router.callback_query(F.data == "faq")  # todo Сделать логику FAQ
+async def faq_handler(callback_query: types.CallbackQuery):
+    await view_cart(callback_query)
+
+
+########################################################################################################################
+### ORDER
 
 # Состояния
 class OrderForm(StatesGroup):
