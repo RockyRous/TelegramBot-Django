@@ -18,5 +18,13 @@ select * from store_order;
 Показать только не выполненые заказы:
 select * from store_order where status = 'pending';
 
+```
 
+Админка джанги
+```
+http://localhost:8000/admin/
+```
+Таблица с заказами:
+```
+http://localhost:8000/orders/
 ```

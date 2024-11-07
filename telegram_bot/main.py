@@ -57,7 +57,7 @@ async def cmd_menu(message: types.Message):
 
 
 async def main():
-    asyncio.create_task(scheduled_newsletter(bot))
+    asyncio.create_task(scheduled_newsletter(bot))  # Рассылка фоновой задачей
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
