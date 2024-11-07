@@ -18,6 +18,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='product',
             name='image',
-            field=models.ImageField(blank=True, null=True, upload_to='products/', validators=[store.models.validate_image_size]),
+            field=models.ImageField(blank=True, null=True, upload_to='products/'),
         ),
     ]

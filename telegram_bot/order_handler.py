@@ -1,11 +1,12 @@
-from aiogram import types, F
+from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import re
 
 from buttons import get_menu_buttons, confirm_order_buttons
-from aiogram import Router
+from cart import create_payment, create_order
+from payments import YookassaGateway
 
 router = Router()
 
@@ -110,16 +111,29 @@ async def confirm_order(callback_query: types.CallbackQuery, state: FSMContext):
     """ Обработка подтверждения заказа """
     data = await state.get_data()
 
-    user_id = callback_query.from_user.id
-    name = data.get("name")
-    phone = data.get("phone")
-    city = data.get("city")
-    address = data.get("address")
-    # Записываем данные в базу
-    # await save_order_to_db(user_id, name, phone, city, address)
-    # todo очистка корзины
+    # Пробуем оплатить - выводим ссылку на оплату
+    payment_url, payment_id, description = await create_payment(callback_query)
+    await callback_query.message.answer(f"Ссылка для оплаты заказа:\n{description}\n{payment_url}")
 
-    await callback_query.message.answer("Ваш заказ подтвержден и принят в обработку!", reply_markup=get_menu_buttons())
+    status = await YookassaGateway.check_payment_status(payment_id)
+    if status == 'succeeded':
+        print(f"Платёж {payment_id} прошёл удачно!")
+        await create_order(callback_query, data)
+        await callback_query.message.answer("Ваш заказ подтвержден и принят в обработку!",
+                                            reply_markup=get_menu_buttons())
+    elif status == 'canceled':
+        print("Платёж был отменён.")
+    else:
+        print("Тайм-аут проверки статуса платежа.")
+
+    # При неудаче предлагаем пробовать снова или отмена
+
+    """
+    Кажется тут ругается 
+    TelegramBadRequest: Telegram server says - Bad Request: query is too old and response timeout expired or query ID is invalid
+    Или там где идет оплата (врятли тк проходит всё до удаления корзины и выводит сообщение)
+    Но мейби отваливается посередине
+    """
     await state.clear()
     await callback_query.answer()
 
@@ -128,5 +142,5 @@ async def confirm_order(callback_query: types.CallbackQuery, state: FSMContext):
 async def cancel_order(callback_query: types.CallbackQuery, state: FSMContext):
     """ Обработка отмены заказа """
     await state.clear()
-    await callback_query.message.answer("Вы отменили ввод данных для доставки.", reply_markup=get_menu_buttons())
+    await callback_query.message.answer("Вы отменили заказ.", reply_markup=get_menu_buttons())
     await callback_query.answer()

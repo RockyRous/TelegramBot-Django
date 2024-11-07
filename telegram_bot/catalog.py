@@ -60,11 +60,12 @@ async def get_product(callback_query):
     finally:
         await conn.close()
 
+    # TODO: Обернуть в трай - юрл может быть не действительным из бд - ставить заглушку
     if product:
         product = product[0]
         product_buttons = get_product_buttons(product)
-        if product['image'] and os.path.isfile(f'/code/media/{product["image"]}'):
-            photo = FSInputFile(f'/code/media/{product['image']}')
+        if product['image_url']:
+            photo = URLInputFile(product['image_url'])
         else:
             photo = URLInputFile('https://серебро.рф/img/placeholder.png')
         await callback_query.message.answer_photo(

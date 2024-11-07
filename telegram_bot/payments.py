@@ -8,7 +8,7 @@ Configuration.secret_key = YOOKASSA_API_KEY
 
 
 class YookassaGateway:
-    def __init__(self, amount: float, return_url: str, description: str):
+    def __init__(self, amount: float, description: str, return_url: str ="https://www.example.com/return_url"):
         self.amount = amount
         self.return_url = return_url
         self.description = description
@@ -19,7 +19,8 @@ class YookassaGateway:
         payment_url = payment.confirmation.confirmation_url
         return payment_url, payment.id
 
-    async def check_payment_status(self, payment_id: str, timeout: int = 60*10, interval: int = 10) -> str:
+    @staticmethod
+    async def check_payment_status(payment_id: str, timeout: int = 60*10, interval: int = 10) -> str:
         """Проверка статуса платежа с таймаутом."""
         start_time = asyncio.get_event_loop().time()
 
@@ -28,7 +29,7 @@ class YookassaGateway:
             if elapsed_time > timeout:
                 return "timeout"
 
-            payment = await self._get_payment_status_async(payment_id)
+            payment = await YookassaGateway._get_payment_status_async(payment_id)
             status = payment.status
             if status == "succeeded":
                 return 'succeeded'
@@ -55,7 +56,8 @@ class YookassaGateway:
         payment = Payment.create(payment_data, uuid.uuid4())
         return payment
 
-    async def _get_payment_status_async(self, payment_id: str):
+    @staticmethod
+    async def _get_payment_status_async(payment_id: str):
         """Асинхронное получение статуса платежа."""
         payment = Payment.find_one(payment_id)
         return payment
@@ -64,14 +66,14 @@ class YookassaGateway:
 async def main():
     # Пример использования
     # Используйте карту 5555555555554477 и любые цифры для оплаты (дату больше текущей)
-    gateway = YookassaGateway(amount=100.00, return_url="https://www.example.com/return_url", description="Заказ №1")
+    gateway = YookassaGateway(amount=100.00, description="Заказ №1")
 
     # Создаем платеж
     payment_url, payment_id = await gateway.create_payment()
     print(f"Ссылка на оплату: {payment_url}")
 
     # Проверяем статус платежа с таймаутом 10 минут и интервалом 10 секунд
-    status = await gateway.check_payment_status(payment_id, timeout=60*10, interval=10)
+    status = await YookassaGateway.check_payment_status(payment_id, timeout=60*10, interval=10)
     if status == 'succeeded':
         print("Платёж прошёл удачно!")
     elif status == 'canceled':

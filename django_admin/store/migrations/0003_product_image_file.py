@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='product',
             name='image_file',
-            field=models.ImageField(blank=True, null=True, upload_to='products/', validators=[store.models.validate_image_size]),
+            field=models.ImageField(blank=True, null=True, upload_to='products/'),
         ),
     ]
