@@ -7,6 +7,7 @@ import asyncio
 from config import API_TOKEN, LOGGING_LEVEL, CHANNEL_ID
 from buttons import get_menu_buttons
 from router import router
+from newsletter import scheduled_newsletter
 
 # Настройка логирования
 logging.basicConfig(level=LOGGING_LEVEL)
@@ -56,6 +57,7 @@ async def cmd_menu(message: types.Message):
 
 
 async def main():
+    asyncio.create_task(scheduled_newsletter(bot))
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
