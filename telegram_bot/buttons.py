@@ -83,8 +83,8 @@ def get_catr_buttons(items: dict) -> InlineKeyboardMarkup:
         for item in items:
             num += 1
             buttons.append([InlineKeyboardButton(
-                text=f"{num}: {item['product_id']} | Кол-во: {item['quantity']} | Нажмите чтобы удалить",
-                callback_data=f"asd"  # todo Сделать меню подтверждения удаления и само удаление
+                text=f"{num}: {item['product_id']} | Кол-во: {item['quantity']} | Нажмите чтобы изменить",
+                callback_data=f"asd"  # todo Сделать меню редактирования кол-ва и удаления
             )])
 
         buttons.append([InlineKeyboardButton(
