@@ -21,7 +21,7 @@ dp.include_router(router)
 # TODO: Хорошо бы сделать удаление старых сообщений
 
 
-async def check_subscription(user_id: int):
+async def check_subscription(user_id: int) -> bool:
     """ Функция для проверки подписки пользователя на канал """
     try:
         # Получаем информацию о статусе пользователя в чате

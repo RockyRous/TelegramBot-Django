@@ -7,7 +7,7 @@ import re
 
 from buttons import get_menu_buttons, confirm_order_buttons
 from catalog import get_categories, get_categories_or_products, get_product
-from cart import create_payment, create_order, view_cart, add_to_cart, set_count
+from cart import create_payment, create_order, view_cart, add_to_cart, set_count, clear_cart
 from payments import YookassaGateway
 from faq import get_faq
 from config import default_img
@@ -65,6 +65,12 @@ async def cart_handler(callback_query: types.CallbackQuery):
 async def cart_handler(callback_query: types.CallbackQuery):
     """ Обработчик колбэка для добавления в корзину """
     await add_to_cart(callback_query)
+
+
+@router.callback_query(F.data.startswith("clear_cart"))
+async def clear_cart_handler(callback_query: types.CallbackQuery):
+    """ Очищение корзины """
+    await clear_cart(callback_query.from_user.id)
 
 
 ########################################################################################################################
@@ -210,3 +216,4 @@ async def cancel_order(callback_query: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await callback_query.message.edit_text("Вы отменили заказ.", reply_markup=get_menu_buttons())
     await callback_query.answer()
+

@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeybo
 
 
 def get_menu_buttons() -> InlineKeyboardMarkup:
-    """ Меню """
+    """ Кнопки меню """
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="Каталог", callback_data="catalog")
@@ -18,7 +18,7 @@ def get_menu_buttons() -> InlineKeyboardMarkup:
 
 
 def get_categories_buttons(categories: list, page: int) -> InlineKeyboardMarkup:
-    """ Категории """
+    """ Кнопки для категорий """
     buttons = []
     num = 0
     for category in categories:
@@ -41,7 +41,7 @@ def get_categories_buttons(categories: list, page: int) -> InlineKeyboardMarkup:
 
 
 def get_products_buttons(products: list, page: int) -> InlineKeyboardMarkup:
-    """ Товары """
+    """ Кнопки для товаров """
     buttons = []
     num = 0
     for product in products:
@@ -65,7 +65,7 @@ def get_products_buttons(products: list, page: int) -> InlineKeyboardMarkup:
 
 
 def get_product_buttons(product: dict) -> InlineKeyboardMarkup:
-    """ Кнопки одного товара """
+    """ Кнопки карточки товара """
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="Добавить в корзину", callback_data=f"quantity:1:{product['id']}")
@@ -102,22 +102,25 @@ def get_catr_buttons(items: dict) -> InlineKeyboardMarkup:
         for item in items:
             num += 1
             buttons.append([InlineKeyboardButton(
-                text=f"{num}: {item['name']} | Кол-во: {item['quantity']} | {item['quantity'] * item['price']} | Нажмите чтобы изменить",
+                text=f"{num}: {item['name']} | Кол-во: {item['quantity']} | {item['quantity'] * item['price']}", #  | Нажмите чтобы изменить
                 callback_data=f"asd"  # todo Сделать меню редактирования кол-ва и удаления
-            )])  # todo: Добавить кнопку с очищением корзины
+            )])
 
         buttons.append([InlineKeyboardButton(text=f"Оформление заказа", callback_data=f"start_order")])
+        buttons.append([InlineKeyboardButton(text=f"Очистить корзину", callback_data=f"clear_cart")])
         buttons.append([InlineKeyboardButton(text="В меню", callback_data="menu")])
 
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
         return keyboard
 
 
-def confirm_order_buttons():
+def confirm_order_buttons() -> InlineKeyboardMarkup:
     """ Кнопки подтверждения заказа """
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Подтвердить", callback_data="confirm_order"),
-         InlineKeyboardButton(text="Отменить", callback_data="cancel_order")]
+        [
+            InlineKeyboardButton(text="Подтвердить", callback_data="confirm_order"),
+            InlineKeyboardButton(text="Отменить", callback_data="cancel_order")
+        ]
     ])
 
 

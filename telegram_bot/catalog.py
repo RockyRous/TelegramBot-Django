@@ -5,10 +5,11 @@ from aiogram.types import URLInputFile, InputMediaPhoto
 from config import DB_URL, default_img_url, default_img
 from buttons import get_categories_buttons, get_products_buttons, get_product_buttons, get_menu_buttons
 
-CATEGORIES_PER_PAGE, ITEMS_PER_PAGE = 5, 5  # Количество категорий и товаров на одной странице
+ITEMS_PER_PAGE = 5  # Кол-во для пагинации
 
 
-async def get_categories(callback_query: types.CallbackQuery):
+async def get_categories(callback_query: types.CallbackQuery) -> None:
+    """ Получение списка категорий с пагинацией """
     conn = await asyncpg.connect(DB_URL)
     try:
         # Получаем номер страницы из callback_data
@@ -19,14 +20,14 @@ async def get_categories(callback_query: types.CallbackQuery):
             page = int(callback_query.data.split('_')[1]) - 1
 
         # Рассчитываем смещение для SQL-запроса
-        offset = (page - 1) * CATEGORIES_PER_PAGE
+        offset = (page - 1) * ITEMS_PER_PAGE
 
         # Запрос на получение категории для текущей страницы
         categories = await conn.fetch("""
                     SELECT id, name FROM store_category
                     WHERE parent_category_id IS NULL
                     LIMIT $1 OFFSET $2
-                """, CATEGORIES_PER_PAGE, offset)
+                """, ITEMS_PER_PAGE, offset)
     finally:
         await conn.close()
 
@@ -46,7 +47,8 @@ async def get_categories(callback_query: types.CallbackQuery):
     )
 
 
-async def get_categories_or_products(callback_query: types.CallbackQuery):
+async def get_categories_or_products(callback_query: types.CallbackQuery) -> None:
+    """ Получение списка подкатегорий или товаров с пагинацией """
     conn = await asyncpg.connect(DB_URL)
     categories = None
     products = None
@@ -98,7 +100,8 @@ async def get_categories_or_products(callback_query: types.CallbackQuery):
     )
 
 
-async def get_product(callback_query: types.CallbackQuery):
+async def get_product(callback_query: types.CallbackQuery) -> None:
+    """ Получаем карточку продукта """
     conn = await asyncpg.connect(DB_URL)
     try:
         query = "SELECT * FROM store_product where id = $1"
