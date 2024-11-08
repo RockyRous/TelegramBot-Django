@@ -1,6 +1,7 @@
 import uuid
 import asyncio
 from yookassa import Configuration, Payment
+
 from config import YOOKASSA_API_KEY, SHOPLD
 
 Configuration.account_id = SHOPLD
@@ -8,6 +9,7 @@ Configuration.secret_key = YOOKASSA_API_KEY
 
 
 class YookassaGateway:
+    """ Yookassa Gateway | Платёжка Юкасса """
     def __init__(self, amount: float, description: str, return_url: str ="https://www.example.com/return_url"):
         self.amount = amount
         self.return_url = return_url

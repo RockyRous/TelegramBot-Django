@@ -19,11 +19,3 @@ docker-compose run django python manage.py migrate
 docker-compose run django python manage.py createsuperuser
 admin : admin
 ```
-Запуск сервера:
-```bash
-docker-compose up
-```
-
-```
-http://localhost:8000/admin
-```

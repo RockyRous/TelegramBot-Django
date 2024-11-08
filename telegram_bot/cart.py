@@ -1,16 +1,15 @@
 from datetime import datetime
+import asyncpg
 
 from aiogram import types
-import asyncpg
 from aiogram.types import InputMediaPhoto
 
-from config import DB_URL
-from buttons import get_quantity_buttons, get_catr_buttons
+from config import DB_URL, default_img
+from buttons import get_quantity_buttons, get_catr_buttons, get_menu_buttons
 from payments import YookassaGateway
 
-# todo позаворачивать всё в трай
 
-async def get_cart(user_id) -> dict:
+async def get_cart(user_id: int) -> dict:
     """ Получаем все товары в корзине пользователя, включая информацию о продукте """
     conn = await asyncpg.connect(DB_URL)
     try:
@@ -26,12 +25,13 @@ async def get_cart(user_id) -> dict:
 
 
 async def add_telegram_user(user_id: int) -> None:
+    """ Проверка на наличие и добавление в случае отсутствия пользователя в бд """
     query_check_user = """
-    SELECT user_id FROM telegram_users WHERE user_id = $1;
+    SELECT user_id FROM store_telegramuser WHERE user_id = $1;
     """
     query_insert_user = """
-    INSERT INTO telegramuser (user_id) 
-    VALUES $1;
+    INSERT INTO store_telegramuser (user_id) 
+    VALUES ($1);
     """
 
     conn = await asyncpg.connect(DB_URL)
@@ -48,18 +48,30 @@ async def add_telegram_user(user_id: int) -> None:
         await conn.close()
 
 
-async def view_cart(callback_query):
+async def view_cart(callback_query: types.CallbackQuery) -> None:
+    """ Отображение корзины """
     user_id = callback_query.from_user.id
     await add_telegram_user(user_id)
     cart_items = await get_cart(user_id)
 
     if cart_items:
-        await callback_query.message.answer(f"Ваша корзина:", reply_markup=get_catr_buttons(cart_items))
+        buttons = get_catr_buttons(cart_items)
+        text = f"Ваша корзина:"
     else:
-        await callback_query.message.answer("Ваша корзина пуста.")
+        buttons = get_menu_buttons()
+        text = "Ваша корзина пуста."
+
+    await callback_query.message.edit_media(
+        media=InputMediaPhoto(
+            media=default_img,
+            caption=text,
+        ),
+        reply_markup=buttons
+    )
 
 
-async def set_count(callback_query: types.CallbackQuery):
+async def set_count(callback_query: types.CallbackQuery) -> None:
+    """ Управление кол-вом товара """
     MIN_ITEMS = 1
     MAX_ITEMS = 100
     quantity = int(callback_query.data.split(":")[1])
@@ -73,19 +85,20 @@ async def set_count(callback_query: types.CallbackQuery):
     try:
         media = InputMediaPhoto(
             media=callback_query.message.photo[-1].file_id,
-            caption=f"Укажите количество товаров:",  # todo: Должна передаваться инфа о товаре
+            caption=f"Укажите количество товаров:",
         )
 
         await callback_query.message.edit_media(
             media=media,
             reply_markup=get_quantity_buttons(quantity, product_id)
         )
-        await callback_query.answer()  # Закрываем уведомление, чтобы кнопка не зависала
+        await callback_query.answer()
     except:
         return
 
 
-async def add_to_cart(callback_query):
+async def add_to_cart(callback_query: types.CallbackQuery) -> None:
+    """ Добавление карточки товара в корзину """
     quantity = int(callback_query.data.split(":")[1])
     product_id = int(callback_query.data.split(":")[2])
     user_id = callback_query.from_user.id
@@ -99,44 +112,25 @@ async def add_to_cart(callback_query):
     finally:
         await conn.close()
 
-    await callback_query.message.answer(f"Вы добавили {quantity} товаров {product_id} в корзину. Вы {user_id}")
-    # await callback_query.answer()  # Закрываем уведомление, чтобы кнопка не зависала
+    buttons = get_menu_buttons()
+    text = f"Вы добавили ({quantity}) товаров в корзину."
+    await callback_query.message.edit_media(
+        media=InputMediaPhoto(
+            media=default_img,
+            caption=text,
+        ),
+        reply_markup=buttons
+    )
 
 
-async def remove_from_cart(user_id: int, product_id: int) -> None:
-    """ Удаляем указанный товар из корзины пользователя """
-    conn = await asyncpg.connect(DB_URL)
-    try:
-        await conn.execute("""
-            DELETE FROM store_cartitem
-            WHERE user_id = $1 AND product_id = $2
-        """, user_id, product_id)
-    finally:
-        await conn.close()
-
-
-async def update_cart_item_quantity(user_id: int, product_id: int, quantity: int) -> None:
-    """ Обновляем количество для указанного товара в корзине пользователя """
-    conn = await asyncpg.connect(DB_URL)
-    try:
-        await conn.execute("""
-            UPDATE store_cartitem
-            SET quantity = $1
-            WHERE user_id = $2 AND product_id = $3
-        """, quantity, user_id, product_id)
-    finally:
-        await conn.close()
-
-
-async def create_payment(callback_query) -> tuple:
-    """ пробуем оплатить """
+async def create_payment(callback_query: types.CallbackQuery) -> tuple:
+    """ Выставление оплаты """
     # Получаем корзину юзера
     user_id = callback_query.from_user.id
     cart_items = await get_cart(user_id)
-
     description = ''
     total_price = 0
-    # Делаем список покупок и составляем прайс
+
     num = 0
     for item in cart_items:
         num += 1
@@ -146,7 +140,6 @@ async def create_payment(callback_query) -> tuple:
     description += f"Итоговая сумма: {total_price} RUB"
 
     gateway = YookassaGateway(amount=float(total_price), description=description)
-    # Создаем платеж
     payment_url, payment_id = await gateway.create_payment()
     print(f"Ссылка на оплату: {payment_url} | Используйте карту 5555555555554477 и любые цифры для оплаты (дату больше текущей)")  # todo: delete
     return payment_url, payment_id, description
@@ -165,7 +158,7 @@ async def clear_cart(user_id: int) -> None:
         await conn.close()
 
 
-async def create_order(callback_query, data):
+async def create_order(callback_query: types.CallbackQuery, data) -> None:
     """ Создание заказа """
     # Собираем данные
     user_id = callback_query.from_user.id
@@ -191,7 +184,51 @@ async def create_order(callback_query, data):
     await clear_cart(user_id)
 
 
+async def get_cart_item(id_cartitem: int) -> dict:
+    """ Получение позиции из корзины """
+    # TODO делать джоин с продуктом
+    # fixme я не доделал этот функционал из-за нехватки времени :С
+    conn = await asyncpg.connect(DB_URL)
+    try:
+        query = "SELECT * FROM store_cartitem WHERE id = $1;"
+        result = await conn.fetch(query, id_cartitem)
+    finally:
+        await conn.close()
 
+    return result
+
+
+async def change_cart_item(callback_query: types.CallbackQuery, id_cartitem: int) -> None:
+    """ Изменения кол-ва и удаление продукта из корзины """
+    # fixme я не доделал этот функционал из-за нехватки времени :С
+    cartitem = await get_cart_item(id_cartitem)
+
+    buttons = get_menu_buttons()
+    text = f"Ваш товар"
+    img = ''
+    await callback_query.message.edit_media(
+        media=InputMediaPhoto(
+            media=img,
+            caption=text,
+        ),
+        reply_markup=buttons
+    )
+    # Выводим инфо о позиции и клаву
+    # Клава: изменить кол-во (подхватывает текущее кол-во), сохранить, удалить позицию, В меню
+
+
+async def update_cart_item_quantity(cartitem_id: int, quantity: int) -> None:
+    """ Обновляем количество для указанного товара в корзине пользователя """
+    # fixme я не доделал этот функционал из-за нехватки времени :С
+    conn = await asyncpg.connect(DB_URL)
+    try:
+        await conn.execute("""
+            UPDATE store_cartitem
+            SET quantity = $1
+            WHERE id = $2
+        """, quantity, cartitem_id)
+    finally:
+        await conn.close()
 
 
 

@@ -1,16 +1,32 @@
 from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto
 
 import re
 
 from buttons import get_menu_buttons, confirm_order_buttons
 from catalog import get_categories, get_categories_or_products, get_product
-from cart import create_payment, create_order, view_cart, add_to_cart, set_count
+from cart import create_payment, create_order, view_cart, add_to_cart, set_count, clear_cart
 from payments import YookassaGateway
+from faq import get_faq
+from config import default_img
 
 router = Router()
+
+
+@router.callback_query(F.data == "menu")
+async def menu_handler(callback_query: types.CallbackQuery):
+    buttons = get_menu_buttons()
+    text = "Выберите действие:"
+
+    await callback_query.message.edit_media(
+        media=InputMediaPhoto(
+            media=default_img,
+            caption=text,
+        ),
+        reply_markup=buttons
+    )
 
 
 ########################################################################################################################
@@ -51,11 +67,17 @@ async def cart_handler(callback_query: types.CallbackQuery):
     await add_to_cart(callback_query)
 
 
+@router.callback_query(F.data.startswith("clear_cart"))
+async def clear_cart_handler(callback_query: types.CallbackQuery):
+    """ Очищение корзины """
+    await clear_cart(callback_query.from_user.id)
+
+
 ########################################################################################################################
 ### FAQ
-@router.callback_query(F.data == "faq")  # todo Сделать логику FAQ
+@router.callback_query(F.data == "faq")
 async def faq_handler(callback_query: types.CallbackQuery):
-    await view_cart(callback_query)
+    await get_faq(callback_query)
 
 
 ########################################################################################################################
@@ -163,20 +185,20 @@ async def confirm_order(callback_query: types.CallbackQuery, state: FSMContext):
 
     # Пробуем оплатить - выводим ссылку на оплату
     payment_url, payment_id, description = await create_payment(callback_query)
-    await callback_query.message.answer(f"Ссылка для оплаты заказа:\n{description}\n{payment_url}")
+    await callback_query.message.edit_text(f"Ссылка для оплаты заказа:\n{description}\n{payment_url}")
 
     status = await YookassaGateway.check_payment_status(payment_id)
     if status == 'succeeded':
         print(f"Платёж {payment_id} прошёл удачно!")
         await create_order(callback_query, data)
-        await callback_query.message.answer("Ваш заказ подтвержден и принят в обработку!",
+        await callback_query.message.edit_text("Ваш заказ подтвержден и принят в обработку!",
                                             reply_markup=get_menu_buttons())
     elif status == 'canceled':
         print("Платёж был отменён.")
     else:
         print("Тайм-аут проверки статуса платежа.")
 
-    # При неудаче предлагаем пробовать снова или отмена
+    # TODO При неудаче предлагаем пробовать снова или отмена
 
     """
     Кажется тут ругается 
@@ -192,5 +214,6 @@ async def confirm_order(callback_query: types.CallbackQuery, state: FSMContext):
 async def cancel_order(callback_query: types.CallbackQuery, state: FSMContext):
     """ Обработка отмены заказа """
     await state.clear()
-    await callback_query.message.answer("Вы отменили заказ.", reply_markup=get_menu_buttons())
+    await callback_query.message.edit_text("Вы отменили заказ.", reply_markup=get_menu_buttons())
     await callback_query.answer()
+

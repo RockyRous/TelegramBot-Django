@@ -70,3 +70,13 @@ class Log(models.Model):
         return f"{self.timestamp} - {self.action} | {self.user_id}"
 
 
+class Newsletter(models.Model):
+    """ Модель для рассылок """
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    is_sent = models.BooleanField(default=False)  # Статус рассылки (отправлено или нет)
+
+    def __str__(self):
+        return f"Рассылка: {self.title}"
+
+

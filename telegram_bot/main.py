@@ -7,6 +7,7 @@ import asyncio
 from config import API_TOKEN, LOGGING_LEVEL, CHANNEL_ID
 from buttons import get_menu_buttons
 from router import router
+from newsletter import scheduled_newsletter
 
 # Настройка логирования
 logging.basicConfig(level=LOGGING_LEVEL)
@@ -17,8 +18,10 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 dp.include_router(router)
 
+# TODO: Хорошо бы сделать удаление старых сообщений
 
-async def check_subscription(user_id: int):
+
+async def check_subscription(user_id: int) -> bool:
     """ Функция для проверки подписки пользователя на канал """
     try:
         # Получаем информацию о статусе пользователя в чате
@@ -31,6 +34,7 @@ async def check_subscription(user_id: int):
     except Exception as e:
         print(f"Error while checking subscription: {e}")
         return False
+
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -53,6 +57,7 @@ async def cmd_menu(message: types.Message):
 
 
 async def main():
+    asyncio.create_task(scheduled_newsletter(bot))  # Рассылка фоновой задачей
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
